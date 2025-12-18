@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>Online Flipbook - Perfect Edition</title>
+<title>E-Book Reader - Optimized</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip/dist/css/page-flip.css">
@@ -17,10 +17,9 @@
 
 :root{
   --vh: 1vh;
-  --controls-height: 75px;
-  --page-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  --controls-height: 90px;
   --primary-gradient: linear-gradient(135deg, #667eea 0%, #5b6dcd 25%, #8b7fc7 50%, #9ea4c7 75%, #b5bcc9 100%);
-  --button-gradient: linear-gradient(135deg, #6b7aff, #6b7aff, #6b7aff);
+  --button-gradient: linear-gradient(135deg, #ff6b6b, #ee5a6f, #c44569);
 }
 
 html,body{
@@ -42,19 +41,16 @@ html,body{
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 60px; 
-  padding-bottom: 60px;
+  padding: 40px 20px;
 }
 
 #bookContainer.zoomed {
   overflow: auto;
   cursor: grab;
-  padding-top: 40px;
-  padding-bottom: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   -webkit-overflow-scrolling: touch;
+  align-items: flex-start;
+  padding-top: 0;
+  justify-content: center;
 }
 
 #bookContainer.zoomed:active {
@@ -62,14 +58,20 @@ html,body{
 }
 
 #book {
-  width: 150%;
-  height: 150%;
+  width: 100%;
+  max-width: 1400px;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2px;
-  transform-origin: center center;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top center;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 0;
+}
+
+#bookContainer.zoomed #book {
+  margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 #book::before {
@@ -93,10 +95,12 @@ html,body{
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
   box-shadow: 
-    0 25px 50px rgba(0,0,0,0.3),
-    0 15px 30px rgba(0,0,0,0.25),
+    0 15px 35px rgba(0,0,0,0.25),
+    0 8px 20px rgba(0,0,0,0.2),
     inset 0 1px 0 rgba(255,255,255,0.6);
   border-radius: 2px;
+  user-select: none;
+  pointer-events: none;
 }
 
 .pf-page canvas{
@@ -104,9 +108,7 @@ html,body{
   height: 100%;
   object-fit: contain;
   display: block;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  -webkit-font-smoothing: subpixel-antialiased;
+  pointer-events: none;
 }
 
 .canvas-wrapper {
@@ -116,13 +118,7 @@ html,body{
   align-items: center;
   justify-content: center;
   overflow: hidden;
-}
-
-.canvas-wrapper canvas {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
+  pointer-events: none;
 }
 
 .page-loading {
@@ -131,8 +127,10 @@ html,body{
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: #f8f9fa;
   z-index: 5;
+  color: #666;
+  font-size: 13px;
 }
 
 .page-loading.hidden {
@@ -140,9 +138,9 @@ html,body{
 }
 
 .mini-spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid #ddd;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ddd;
   border-top-color: #555;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -193,13 +191,13 @@ html,body{
 }
 
 #pageInput {
-  width: 42px;
+  width: 50px;
   background: rgba(255,255,255,0.2);
   border: 1px solid rgba(255,255,255,0.3);
   border-radius: 6px;
   color: #fff;
   text-align: center;
-  padding: 2px 4px;
+  padding: 3px 5px;
   font-size: 13px;
   font-weight: 600;
   outline: none;
@@ -248,7 +246,6 @@ html,body{
   cursor: pointer;
   border: none;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  transition: transform 0.2s;
 }
 
 .toolbar {
@@ -320,6 +317,50 @@ html,body{
   opacity: 1;
 }
 
+.nav-arrow {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 80px;
+  background: var(--button-gradient);
+  border: none;
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+  z-index: 998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.nav-arrow:hover {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.nav-arrow:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.nav-arrow:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.nav-arrow.left {
+  left: 10px;
+  border-radius: 0 12px 12px 0;
+}
+
+.nav-arrow.right {
+  right: 10px;
+  border-radius: 12px 0 0 12px;
+}
+
 .zoom-indicator {
   position: fixed;
   top: 20px;
@@ -386,19 +427,14 @@ html,body{
 
 @media (max-width: 768px) {
   :root { --controls-height: 95px; }
-  #bookContainer { height: calc(var(--vh,1vh)*100 - var(--controls-height)); }
+  #bookContainer { height: calc(var(--vh,1vh)*100 - var(--controls-height)); padding: 20px 10px; }
   .sliderBar { width: 96%; padding: 4px 10px; }
   .toolbar button { width: 38px; height: 38px; font-size: 14px; }
-}
-
-body.hide-controls .controls-container {
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-body:not(.hide-controls) .controls-container {
-  opacity: 1;
-  transition: opacity 0.3s;
+  .nav-arrow {
+    width: 40px;
+    height: 60px;
+    font-size: 20px;
+  }
 }
 </style>
 </head>
@@ -407,6 +443,9 @@ body:not(.hide-controls) .controls-container {
 <div id="bookContainer">
   <div id="book"></div>
 </div>
+
+<button class="nav-arrow left" id="navPrevBtn" style="display:none;">◀</button>
+<button class="nav-arrow right" id="navNextBtn" style="display:none;">▶</button>
 
 <div class="zoom-indicator" id="zoomIndicator">100%</div>
 
@@ -440,13 +479,13 @@ body:not(.hide-controls) .controls-container {
 <script>
 const CONFIG = {
   pdfUrl: 'book.pdf',
-  renderAhead: 2,
-  cleanupDistance: 6,
-  maxDPR: 3,
-  baseWidth: 1200,
-  maxConcurrentRenders: 2,
-  flipDebounce: 150,
-  highQualityScale: 2.5
+  renderAhead: 3,
+  cleanupDistance: 8,
+  maxDPR: 2,
+  baseWidth: 900,
+  maxConcurrentRenders: 3,
+  flipDebounce: 100,
+  renderQuality: 1.8
 };
 
 const $ = s => document.querySelector(s);
@@ -457,10 +496,10 @@ let totalPages = 0;
 let zoomLevel = 1;
 let targetWidth = 0;
 let targetHeight = 0;
-let isCoverMode = true;
 let lastFlipTime = 0;
 let activeRenders = 0;
 
+const pageDimensions = new Map();
 const renderedPages = new Map();
 const pageElements = [];
 const renderQueue = new Set();
@@ -485,12 +524,6 @@ function applyZoom() {
   const container = $('#bookContainer');
   if (zoomLevel > 1) {
     container.classList.add('zoomed');
-    setTimeout(() => {
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-      const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
-      container.scrollTop = maxScrollTop / 2;
-      container.scrollLeft = maxScrollLeft / 2;
-    }, 10);
   } else {
     container.classList.remove('zoomed');
     container.scrollTop = 0;
@@ -514,7 +547,7 @@ function showZoomIndicator() {
 }
 
 function zoomIn() {
-  const steps = [1, 1.5, 2, 2.5, 3, 3.5];
+  const steps = [1, 1.25, 1.5, 1.75, 2, 2.5];
   const idx = steps.indexOf(zoomLevel);
   if (idx < steps.length - 1) {
     zoomLevel = steps[idx + 1];
@@ -523,7 +556,7 @@ function zoomIn() {
 }
 
 function zoomOut() {
-  const steps = [1, 1.5, 2, 2.5, 3, 3.5];
+  const steps = [1, 1.25, 1.5, 1.75, 2, 2.5];
   const idx = steps.indexOf(zoomLevel);
   if (idx > 0) {
     zoomLevel = steps[idx - 1];
@@ -538,24 +571,7 @@ async function init() {
     pdfDoc = await pdfjsLib.getDocument(CONFIG.pdfUrl).promise;
     totalPages = pdfDoc.numPages;
     
-    const firstPage = await pdfDoc.getPage(1);
-    const viewport = firstPage.getViewport({ scale: 1 });
-    
-    const container = $('#bookContainer');
-    const availableWidth = window.innerWidth * 0.82;
-    const availableHeight = (window.innerHeight - 135) * 0.82;
-    const aspect = viewport.width / viewport.height;
-    
-    let width = availableWidth;
-    let height = width / aspect;
-    
-    if (height > availableHeight) {
-      height = availableHeight;
-      width = height * aspect;
-    }
-    
-    targetWidth = Math.min(CONFIG.baseWidth, width);
-    targetHeight = targetWidth / aspect;
+    await calculateStandardDimensions();
     
     createFlipbook();
     createEmptyPages();
@@ -563,18 +579,56 @@ async function init() {
     
     $('#loader').style.display = 'none';
     $('#controls').style.display = 'flex';
+    $('#navPrevBtn').style.display = 'flex';
+    $('#navNextBtn').style.display = 'flex';
     $('#pageSlider').max = totalPages;
     $('#pageInput').max = totalPages;
     $('#totalPages').textContent = totalPages;
     
     await renderPage(1);
-    isCoverMode = true;
-    pageFlip.turnToPage(1);
+    await renderPage(2);
+    
+    pageFlip.turnToPage(0);
     updateUI();
+    
+    setTimeout(() => {
+      updateVisiblePages(0);
+    }, 100);
     
   } catch (err) {
     $('#loader').querySelector('.loader-text').textContent = 'ไม่พบไฟล์ PDF (book.pdf)';
     console.error('Init error:', err);
+  }
+}
+
+async function calculateStandardDimensions() {
+  const samplePage = await pdfDoc.getPage(2);
+  const viewport = samplePage.getViewport({ scale: 1 });
+  
+  const container = $('#bookContainer');
+  const availableWidth = Math.min(window.innerWidth * 0.85, 1400);
+  const availableHeight = (window.innerHeight - 130) * 0.85;
+  const aspect = viewport.width / viewport.height;
+  
+  let width = availableWidth;
+  let height = width / aspect;
+  
+  if (height > availableHeight) {
+    height = availableHeight;
+    width = height * aspect;
+  }
+  
+  targetWidth = Math.min(CONFIG.baseWidth, width);
+  targetHeight = targetWidth / aspect;
+  
+  for (let i = 1; i <= totalPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    const vp = page.getViewport({ scale: 1 });
+    pageDimensions.set(i, {
+      width: vp.width,
+      height: vp.height,
+      aspect: vp.width / vp.height
+    });
   }
 }
 
@@ -586,12 +640,17 @@ function createFlipbook() {
     width: targetWidth,
     height: targetHeight,
     size: 'stretch',
-    minWidth: 300,
-    maxWidth: 4000,
-    minHeight: 200,
-    maxHeight: 4000,
-    showCover: false,
-    mobileScrollSupport: false
+    minWidth: 250,
+    maxWidth: 3000,
+    minHeight: 180,
+    maxHeight: 3000,
+    showCover: true,
+    mobileScrollSupport: false,
+    usePortrait: false,
+    disableFlipByClick: true,
+    swipeDistance: 0,
+    clickEventForward: false,
+    useMouseEvents: false
   });
   
   pageFlip.on('flip', e => {
@@ -609,6 +668,11 @@ function createEmptyPages() {
     const el = document.createElement('div');
     el.className = 'pf-page';
     el.setAttribute('data-page', i);
+    
+    if (i === 1 || i === totalPages) {
+      el.setAttribute('data-density', 'hard');
+    }
+    
     el.style.width = targetWidth + 'px';
     el.style.height = targetHeight + 'px';
     
@@ -627,10 +691,8 @@ function updateVisiblePages(pageIndex) {
   const page = pageIndex + 1;
   const range = CONFIG.renderAhead;
   
-  for (let i = page - range; i <= page + range; i++) {
-    if (i >= 1 && i <= totalPages) {
-      queueRender(i);
-    }
+  for (let i = Math.max(1, page - range); i <= Math.min(totalPages, page + range + 1); i++) {
+    queueRender(i);
   }
   
   cleanupDistantPages(page);
@@ -663,7 +725,7 @@ async function processQueue() {
 
 async function renderPage(pageNum) {
   const el = pageElements[pageNum - 1];
-  if (!el) return;
+  if (!el || renderedPages.has(pageNum)) return;
   
   try {
     const page = await pdfDoc.getPage(pageNum);
@@ -674,8 +736,7 @@ async function renderPage(pageNum) {
       targetHeight / viewport.height
     );
     
-    const scale = baseScale * CONFIG.highQualityScale;
-    
+    const scale = baseScale * CONFIG.renderQuality;
     const scaledViewport = page.getViewport({ scale });
     const DPR = Math.min(window.devicePixelRatio || 1, CONFIG.maxDPR);
     
@@ -717,7 +778,7 @@ function cleanupDistantPages(currentPage) {
   const distance = CONFIG.cleanupDistance;
   
   renderedPages.forEach((_, pageNum) => {
-    if (Math.abs(pageNum - currentPage) > distance && pageNum > 2 && pageNum < totalPages - 1) {
+    if (Math.abs(pageNum - currentPage) > distance) {
       const el = pageElements[pageNum - 1];
       if (el) {
         const wrapper = el.querySelector('.canvas-wrapper');
@@ -740,21 +801,21 @@ function updateUI() {
   $('#firstBtn').disabled = currentPage <= 1;
   $('#nextBtn').disabled = currentPage >= totalPages;
   
+  $('#navPrevBtn').disabled = currentPage <= 1;
+  $('#navNextBtn').disabled = currentPage >= totalPages;
+  
   $('#zoomOutBtn').disabled = zoomLevel <= 1;
-  $('#zoomInBtn').disabled = zoomLevel >= 3.5;
+  $('#zoomInBtn').disabled = zoomLevel >= 2.5;
 }
 
 function goToPage(page) {
   page = Math.max(1, Math.min(page, totalPages));
   currentPage = page;
   
-  if (isCoverMode && page > 1) {
-    isCoverMode = false;
-    updateVisiblePages(page - 1);
-  }
+  updateVisiblePages(page - 1);
   
   try {
-    pageFlip.turnToPage(page);
+    pageFlip.turnToPage(page - 1);
   } catch(e) {
     console.error('Flip error:', e);
   }
@@ -766,12 +827,10 @@ const clickHandler = (next) => () => {
   
   if (next && currentPage < totalPages) {
     currentPage++;
-    isCoverMode = false;
     updateVisiblePages(currentPage - 1);
     pageFlip.flipNext();
   } else if (!next && currentPage > 1) {
     currentPage--;
-    isCoverMode = false;
     updateVisiblePages(currentPage - 1);
     pageFlip.flipPrev();
   }
@@ -781,9 +840,11 @@ const clickHandler = (next) => () => {
 $('#prevBtn').addEventListener('click', clickHandler(false));
 $('#nextBtn').addEventListener('click', clickHandler(true));
 
+$('#navPrevBtn').addEventListener('click', clickHandler(false));
+$('#navNextBtn').addEventListener('click', clickHandler(true));
+
 $('#firstBtn').addEventListener('click', () => {
   if (currentPage !== 1) {
-    isCoverMode = true;
     goToPage(1);
   }
 });
@@ -801,13 +862,11 @@ $('#fsBtn').addEventListener('click', () => {
 
 $('#pageSlider').addEventListener('input', e => {
   const page = parseInt(e.target.value, 10) || 1;
-  if (page > 1) isCoverMode = false;
   goToPage(page);
 });
 
 $('#pageInput').addEventListener('change', e => {
   const page = Math.max(1, Math.min(parseInt(e.target.value, 10) || 1, totalPages));
-  if (page > 1) isCoverMode = false;
   goToPage(page);
   e.target.value = page;
 });
@@ -838,6 +897,24 @@ window.addEventListener('keydown', e => {
     $('#fsBtn').click();
   }
 });
+
+let wheelTimeout = null;
+window.addEventListener('wheel', e => {
+  if (zoomLevel > 1) return;
+  if (e.target.tagName === 'INPUT') return;
+  
+  if (wheelTimeout) return;
+  
+  wheelTimeout = setTimeout(() => {
+    wheelTimeout = null;
+  }, 300);
+  
+  if (e.deltaY > 0 && currentPage < totalPages) {
+    $('#nextBtn').click();
+  } else if (e.deltaY < 0 && currentPage > 1) {
+    $('#prevBtn').click();
+  }
+}, { passive: true });
 
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
