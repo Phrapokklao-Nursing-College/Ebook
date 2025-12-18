@@ -50,7 +50,7 @@ html,body{
   -webkit-overflow-scrolling: touch;
   align-items: flex-start;
   padding-top: 0;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 #bookContainer.zoomed:active {
@@ -67,11 +67,14 @@ html,body{
   transform-origin: top center;
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   margin-top: 0;
+  min-width: 100%;
 }
 
 #bookContainer.zoomed #book {
   margin-top: 20px;
   margin-bottom: 20px;
+  margin-left: 20px;
+  margin-right: 20px;
 }
 
 #book::before {
@@ -435,6 +438,26 @@ html,body{
     height: 60px;
     font-size: 20px;
   }
+  #pageInput { width: 45px; font-size: 12px; }
+  .page-info { min-width: 75px; font-size: 12px; }
+}
+
+@media (max-width: 480px) {
+  :root { --controls-height: 100px; }
+  #bookContainer { padding: 10px 5px; }
+  .sliderBar { width: 98%; padding: 3px 8px; gap: 6px; }
+  .toolbar { gap: 4px; padding: 4px 7px; }
+  .toolbar button { width: 36px; height: 36px; font-size: 13px; }
+  .nav-arrow { 
+    width: 35px; 
+    height: 55px; 
+    font-size: 18px; 
+  }
+  .nav-arrow.left { left: 5px; }
+  .nav-arrow.right { right: 5px; }
+  #pageInput { width: 40px; font-size: 11px; }
+  .page-info { min-width: 70px; font-size: 11px; }
+  .zoom-indicator { top: 10px; right: 10px; font-size: 12px; padding: 6px 12px; }
 }
 </style>
 </head>
@@ -499,6 +522,13 @@ let targetHeight = 0;
 let lastFlipTime = 0;
 let activeRenders = 0;
 
+// Touch/Pan variables
+let isPanning = false;
+let startX = 0;
+let startY = 0;
+let scrollLeft = 0;
+let scrollTop = 0;
+
 const pageDimensions = new Map();
 const renderedPages = new Map();
 const pageElements = [];
@@ -524,14 +554,106 @@ function applyZoom() {
   const container = $('#bookContainer');
   if (zoomLevel > 1) {
     container.classList.add('zoomed');
+    enablePanning();
   } else {
     container.classList.remove('zoomed');
+    disablePanning();
     container.scrollTop = 0;
     container.scrollLeft = 0;
   }
   
   showZoomIndicator();
   updateUI();
+}
+
+function enablePanning() {
+  const container = $('#bookContainer');
+  
+  // Mouse events
+  container.addEventListener('mousedown', startPan);
+  container.addEventListener('mousemove', doPan);
+  container.addEventListener('mouseup', endPan);
+  container.addEventListener('mouseleave', endPan);
+  
+  // Touch events
+  container.addEventListener('touchstart', startPanTouch, { passive: false });
+  container.addEventListener('touchmove', doPanTouch, { passive: false });
+  container.addEventListener('touchend', endPan);
+}
+
+function disablePanning() {
+  const container = $('#bookContainer');
+  
+  container.removeEventListener('mousedown', startPan);
+  container.removeEventListener('mousemove', doPan);
+  container.removeEventListener('mouseup', endPan);
+  container.removeEventListener('mouseleave', endPan);
+  
+  container.removeEventListener('touchstart', startPanTouch);
+  container.removeEventListener('touchmove', doPanTouch);
+  container.removeEventListener('touchend', endPan);
+}
+
+function startPan(e) {
+  if (zoomLevel <= 1) return;
+  isPanning = true;
+  const container = $('#bookContainer');
+  startX = e.pageX - container.offsetLeft;
+  startY = e.pageY - container.offsetTop;
+  scrollLeft = container.scrollLeft;
+  scrollTop = container.scrollTop;
+  container.style.cursor = 'grabbing';
+}
+
+function startPanTouch(e) {
+  if (zoomLevel <= 1) return;
+  if (e.touches.length !== 1) return;
+  
+  isPanning = true;
+  const container = $('#bookContainer');
+  const touch = e.touches[0];
+  startX = touch.pageX - container.offsetLeft;
+  startY = touch.pageY - container.offsetTop;
+  scrollLeft = container.scrollLeft;
+  scrollTop = container.scrollTop;
+}
+
+function doPan(e) {
+  if (!isPanning || zoomLevel <= 1) return;
+  e.preventDefault();
+  
+  const container = $('#bookContainer');
+  const x = e.pageX - container.offsetLeft;
+  const y = e.pageY - container.offsetTop;
+  const walkX = (x - startX) * 1.5;
+  const walkY = (y - startY) * 1.5;
+  
+  container.scrollLeft = scrollLeft - walkX;
+  container.scrollTop = scrollTop - walkY;
+}
+
+function doPanTouch(e) {
+  if (!isPanning || zoomLevel <= 1) return;
+  if (e.touches.length !== 1) return;
+  e.preventDefault();
+  
+  const container = $('#bookContainer');
+  const touch = e.touches[0];
+  const x = touch.pageX - container.offsetLeft;
+  const y = touch.pageY - container.offsetTop;
+  const walkX = (x - startX) * 1.5;
+  const walkY = (y - startY) * 1.5;
+  
+  container.scrollLeft = scrollLeft - walkX;
+  container.scrollTop = scrollTop - walkY;
+}
+
+function endPan() {
+  isPanning = false;
+  const container = $('#bookContainer');
+  if (zoomLevel > 1) {
+    container.style.cursor = 'grab';
+  }
 }
 
 function showZoomIndicator() {
@@ -606,8 +728,11 @@ async function calculateStandardDimensions() {
   const viewport = samplePage.getViewport({ scale: 1 });
   
   const container = $('#bookContainer');
-  const availableWidth = Math.min(window.innerWidth * 0.85, 1400);
-  const availableHeight = (window.innerHeight - 130) * 0.85;
+  const isMobile = window.innerWidth <= 768;
+  const availableWidth = isMobile 
+    ? Math.min(window.innerWidth * 0.95, 800)
+    : Math.min(window.innerWidth * 0.85, 1400);
+  const availableHeight = (window.innerHeight - (isMobile ? 110 : 130)) * 0.85;
   const aspect = viewport.width / viewport.height;
   
   let width = availableWidth;
@@ -618,7 +743,7 @@ async function calculateStandardDimensions() {
     width = height * aspect;
   }
   
-  targetWidth = Math.min(CONFIG.baseWidth, width);
+  targetWidth = Math.min(isMobile ? 700 : CONFIG.baseWidth, width);
   targetHeight = targetWidth / aspect;
   
   for (let i = 1; i <= totalPages; i++) {
@@ -913,6 +1038,44 @@ window.addEventListener('wheel', e => {
     $('#nextBtn').click();
   } else if (e.deltaY < 0 && currentPage > 1) {
     $('#prevBtn').click();
+  }
+}, { passive: true });
+
+// Touch swipe for page navigation (only when not zoomed)
+let touchStartX = 0;
+let touchStartY = 0;
+let touchStartTime = 0;
+
+window.addEventListener('touchstart', e => {
+  if (zoomLevel > 1) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+  
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  touchStartTime = Date.now();
+}, { passive: true });
+
+window.addEventListener('touchend', e => {
+  if (zoomLevel > 1) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+  
+  const touchEndX = e.changedTouches[0].clientX;
+  const touchEndY = e.changedTouches[0].clientY;
+  const touchEndTime = Date.now();
+  
+  const deltaX = touchEndX - touchStartX;
+  const deltaY = touchEndY - touchStartY;
+  const deltaTime = touchEndTime - touchStartTime;
+  
+  // Check if it's a swipe (fast horizontal movement)
+  if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50 && deltaTime < 300) {
+    if (deltaX > 0 && currentPage > 1) {
+      // Swipe right = previous page
+      $('#prevBtn').click();
+    } else if (deltaX < 0 && currentPage < totalPages) {
+      // Swipe left = next page
+      $('#nextBtn').click();
+    }
   }
 }, { passive: true });
 
