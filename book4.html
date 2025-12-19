@@ -106,28 +106,30 @@ const CFG = {
 };
 
 const $ = s => document.querySelector(s);
-let pdf, flip;
-let curPage = 1, total = 0, zoom = 1, tW = 0, tH = 0, isPort = false;
-let lastPageBeforeResize = 1;
-let resizing = false;
-
+let pdf, flip, curPage = 1, total = 0, zoom = 1, tW = 0, tH = 0, isPort = false;
+let panning = false, startX, startY, scrLeft, scrTop;
 const dims = new Map(), rendered = new Map(), elems = [], queue = new Set();
 let resizeT, zoomT, kbT = 0;
 
 if (window.pdfjsLib) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
 
 function detectOrient() {
   isPort = window.innerHeight > window.innerWidth;
-  const ind = $('#orientationIndicator');
-  $('#orientIcon').textContent = isPort ? '📱' : '📖';
-  $('#orientText').textContent = isPort ? 'Portrait' : 'Landscape';
-  ind.style.background = isPort
-    ? 'rgba(255,107,107,.9)'
-    : 'rgba(102,126,234,.9)';
-  setTimeout(() => ind.style.opacity = '0', 2000);
+  const ind = $('#orientationIndicator'), icon = $('#orientIcon'), txt = $('#orientText');
+  if (isPort) {
+    icon.textContent = '📱';
+    txt.textContent = 'Portrait';
+    ind.style.background = 'rgba(255,107,107,.9)';
+  } else {
+    icon.textContent = '📖';
+    txt.textContent = 'Landscape';
+    ind.style.background = 'rgba(102,126,234,.9)';
+  }
+  setTimeout(() => ind.style.opacity = '0', 3000);
+  return isPort;
 }
 
 function updateVh() {
@@ -135,69 +137,170 @@ function updateVh() {
 }
 updateVh();
 
-async function init() {
-  $('#loader').style.display = 'flex';
-
-  detectOrient();
-  pdf = await pdfjsLib.getDocument(CFG.pdfUrl).promise;
-  total = pdf.numPages;
-
-  await calcDims();
-  createFlip();
-  createPages();
-  flip.loadFromHTML(elems);
-
-  $('#loader').style.display = 'none';
-  $('#controls').style.display = 'flex';
-  $('#navPrevBtn').style.display = 'flex';
-  $('#navNextBtn').style.display = 'flex';
-
-  $('#pageSlider').max = total;
-  $('#pageInput').max = total;
-  $('#totalPages').textContent = total;
-
-  await renderPage(curPage);
-  flip.turnToPage(curPage - 1);
-  updateVisible(curPage - 1);
+function applyZoom() {
+  $('#book').style.transform = `scale(${zoom})`;
+  const cont = $('#bookContainer');
+  if (zoom > 1) {
+    cont.classList.add('zoomed');
+    cont.addEventListener('mousedown', startPan);
+    cont.addEventListener('mousemove', doPan);
+    cont.addEventListener('mouseup', endPan);
+    cont.addEventListener('touchstart', startPanTouch, { passive: false });
+    cont.addEventListener('touchmove', doPanTouch, { passive: false });
+    cont.addEventListener('touchend', endPan);
+  } else {
+    cont.classList.remove('zoomed');
+    cont.scrollTop = cont.scrollLeft = 0;
+  }
+  showZoom();
   updateUI();
+}
+
+function startPan(e) {
+  if (zoom <= 1) return;
+  panning = true;
+  const c = $('#bookContainer');
+  startX = e.pageX - c.offsetLeft;
+  startY = e.pageY - c.offsetTop;
+  scrLeft = c.scrollLeft;
+  scrTop = c.scrollTop;
+}
+
+function startPanTouch(e) {
+  if (zoom <= 1 || e.touches.length !== 1) return;
+  panning = true;
+  const c = $('#bookContainer'), t = e.touches[0];
+  startX = t.pageX - c.offsetLeft;
+  startY = t.pageY - c.offsetTop;
+  scrLeft = c.scrollLeft;
+  scrTop = c.scrollTop;
+}
+
+function doPan(e) {
+  if (!panning || zoom <= 1) return;
+  e.preventDefault();
+  const c = $('#bookContainer');
+  c.scrollLeft = scrLeft - ((e.pageX - c.offsetLeft - startX) * 1.5);
+  c.scrollTop = scrTop - ((e.pageY - c.offsetTop - startY) * 1.5);
+}
+
+function doPanTouch(e) {
+  if (!panning || zoom <= 1 || e.touches.length !== 1) return;
+  e.preventDefault();
+  const c = $('#bookContainer'), t = e.touches[0];
+  c.scrollLeft = scrLeft - ((t.pageX - c.offsetLeft - startX) * 1.5);
+  c.scrollTop = scrTop - ((t.pageY - c.offsetTop - startY) * 1.5);
+}
+
+function endPan() {
+  panning = false;
+}
+
+function showZoom() {
+  const ind = $('#zoomIndicator');
+  ind.textContent = `${Math.round(zoom * 100)}%`;
+  ind.classList.add('show');
+  clearTimeout(zoomT);
+  zoomT = setTimeout(() => ind.classList.remove('show'), 1500);
+}
+
+function zoomIn() {
+  const steps = [1, 1.25, 1.5, 1.75, 2, 2.5];
+  const idx = steps.indexOf(zoom);
+  if (idx < steps.length - 1) {
+    zoom = steps[idx + 1];
+    applyZoom();
+  }
+}
+
+function zoomOut() {
+  const steps = [1, 1.25, 1.5, 1.75, 2, 2.5];
+  const idx = steps.indexOf(zoom);
+  if (idx > 0) {
+    zoom = steps[idx - 1];
+    applyZoom();
+  }
+}
+
+async function init() {
+  try {
+    $('#loader').style.display = 'flex';
+    detectOrient();
+    
+    pdf = await pdfjsLib.getDocument(CFG.pdfUrl).promise;
+    total = pdf.numPages;
+    
+    await calcDims();
+    createFlip();
+    createPages();
+    flip.loadFromHTML(elems);
+    
+    $('#loader').style.display = 'none';
+    $('#controls').style.display = 'flex';
+    $('#navPrevBtn').style.display = 'flex';
+    $('#navNextBtn').style.display = 'flex';
+    $('#pageSlider').max = total;
+    $('#pageInput').max = total;
+    $('#totalPages').textContent = total;
+    
+    await renderPage(1);
+    if (!isPort) await renderPage(2);
+    
+    flip.turnToPage(0);
+    updateUI();
+    setTimeout(() => updateVisible(0), 100);
+    
+  } catch (err) {
+    $('#loader').querySelector('.loader-text').textContent = 'ไม่พบไฟล์ PDF (book.pdf)';
+    console.error(err);
+  }
 }
 
 async function calcDims() {
   const pg = await pdf.getPage(1);
   const vp = pg.getViewport({ scale: 1 });
   const s = isPort ? CFG.portrait : CFG.landscape;
-
   const availW = Math.min(window.innerWidth * s.width, s.maxW);
   const availH = (window.innerHeight - 100) * 0.85;
   const asp = vp.width / vp.height;
-
+  
   let w = availW, h = w / asp;
   if (h > availH) {
     h = availH;
     w = h * asp;
   }
-
+  
   tW = Math.min(s.targetW, w);
   tH = tW / asp;
+  
+  for (let i = 1; i <= total; i++) {
+    const p = await pdf.getPage(i);
+    const v = p.getViewport({ scale: 1 });
+    dims.set(i, { w: v.width, h: v.height, asp: v.width / v.height, rot: p.rotate || 0 });
+  }
 }
 
 function createFlip() {
   const bookEl = $('#book');
   bookEl.innerHTML = '';
-
+  
   flip = new St.PageFlip(bookEl, {
     width: tW,
     height: tH,
     size: 'stretch',
+    minWidth: 250,
+    maxWidth: 3000,
+    minHeight: 180,
+    maxHeight: 3000,
     showCover: true,
     usePortrait: isPort,
     swipeDistance: 50
   });
-
+  
   flip.on('flip', e => {
     curPage = e.data + 1;
     updateVisible(e.data);
-    updateUI();
+    setTimeout(updateUI, 100);
   });
 }
 
@@ -206,89 +309,152 @@ function createPages() {
   for (let i = 1; i <= total; i++) {
     const el = document.createElement('div');
     el.className = 'pf-page';
-    el.innerHTML = `
-      <div class="page-loading"><div class="mini-spinner"></div></div>
-      <div class="canvas-wrapper"></div>`;
+    el.dataset.pageNum = i;
+    el.innerHTML = `<div class="page-loading"><div class="mini-spinner"></div></div><div class="canvas-wrapper"></div>`;
     elems.push(el);
   }
 }
 
 async function renderPage(n) {
-  if (n < 1 || n > total || rendered.has(n)) return;
-
-  const pg = await pdf.getPage(n);
-  const vp = pg.getViewport({ scale: (tW / pg.view[2]) * CFG.quality });
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-
-  canvas.width = vp.width;
-  canvas.height = vp.height;
-
-  await pg.render({ canvasContext: ctx, viewport: vp }).promise;
-
-  const el = elems[n - 1];
-  el.querySelector('.canvas-wrapper').innerHTML = '';
-  el.querySelector('.canvas-wrapper').appendChild(canvas);
-  el.querySelector('.page-loading').style.display = 'none';
-
-  rendered.set(n, true);
+  if (n < 1 || n > total || rendered.has(n) || queue.has(n)) return;
+  queue.add(n);
+  
+  try {
+    const pg = await pdf.getPage(n);
+    const dim = dims.get(n);
+    let rotation = dim.rot;
+    
+    // Auto-correct rotation if page appears sideways
+    if (rotation === 90 || rotation === 270) {
+      rotation = 0;
+    }
+    
+    const scale = (tW / dim.w) * CFG.quality;
+    const dpr = Math.min(window.devicePixelRatio || 1, CFG.maxDPR);
+    const vp = pg.getViewport({ scale: scale * dpr, rotation });
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    canvas.width = vp.width;
+    canvas.height = vp.height;
+    
+    await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+    
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    
+    const el = elems[n - 1];
+    el.querySelector('.canvas-wrapper').innerHTML = '';
+    el.querySelector('.canvas-wrapper').appendChild(canvas);
+    el.querySelector('.page-loading').classList.add('hidden');
+    
+    rendered.set(n, canvas);
+  } catch (err) {
+    console.error(`Error page ${n}:`, err);
+  } finally {
+    queue.delete(n);
+  }
 }
 
 function updateVisible(idx) {
-  renderPage(idx + 1);
-  renderPage(idx + 2);
+  const pg = idx + 1;
+  const toRender = new Set();
+  
+  if (isPort) {
+    for (let i = 0; i <= CFG.renderAhead; i++) {
+      const p = pg + i;
+      if (p >= 1 && p <= total) toRender.add(p);
+    }
+  } else {
+    const left = pg % 2 === 0 ? pg - 1 : pg;
+    const right = left + 1;
+    if (left >= 1 && left <= total) toRender.add(left);
+    if (right >= 1 && right <= total) toRender.add(right);
+    
+    for (let i = 1; i <= CFG.renderAhead; i++) {
+      const nL = left + (i * 2);
+      const nR = nL + 1;
+      if (nL >= 1 && nL <= total) toRender.add(nL);
+      if (nR >= 1 && nR <= total) toRender.add(nR);
+    }
+  }
+  
+  toRender.forEach(p => {
+    if (!rendered.has(p) && !queue.has(p)) renderPage(p);
+  });
 }
 
 function updateUI() {
   $('#pageInput').value = curPage;
   $('#pageSlider').value = curPage;
+  
+  $('#prevBtn').disabled = $('#firstBtn').disabled = $('#navPrevBtn').disabled = curPage <= 1;
+  $('#nextBtn').disabled = $('#navNextBtn').disabled = curPage >= total;
+  $('#zoomInBtn').disabled = zoom >= 2.5;
+  $('#zoomOutBtn').disabled = zoom <= 1;
 }
 
 function goPage(p) {
-  curPage = Math.max(1, Math.min(total, parseInt(p)));
+  curPage = Math.max(1, Math.min(total, parseInt(p) || 1));
   flip.turnToPage(curPage - 1);
   updateUI();
 }
 
 $('#pageInput').addEventListener('change', e => goPage(e.target.value));
 $('#pageSlider').addEventListener('input', e => goPage(e.target.value));
+$('#firstBtn').addEventListener('click', () => goPage(1));
 $('#prevBtn').addEventListener('click', () => curPage > 1 && flip.flipPrev());
 $('#nextBtn').addEventListener('click', () => curPage < total && flip.flipNext());
 $('#navPrevBtn').addEventListener('click', () => curPage > 1 && flip.flipPrev());
 $('#navNextBtn').addEventListener('click', () => curPage < total && flip.flipNext());
-
+$('#zoomInBtn').addEventListener('click', zoomIn);
+$('#zoomOutBtn').addEventListener('click', zoomOut);
 $('#fsBtn').addEventListener('click', () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen();
-  } else {
-    document.exitFullscreen();
-  }
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
 });
 
-document.addEventListener('fullscreenchange', () => {
-  lastPageBeforeResize = curPage;
-  setTimeout(() => {
-    flip.turnToPage(lastPageBeforeResize - 1);
-  }, 200);
+document.addEventListener('keydown', e => {
+  if (Date.now() - kbT < 200) return;
+  kbT = Date.now();
+  if (e.key === 'ArrowRight') curPage < total && flip.flipNext();
+  else if (e.key === 'ArrowLeft') curPage > 1 && flip.flipPrev();
+  else if (e.key === 'Home') goPage(1);
+  else if (e.key === 'End') goPage(total);
+  else if (e.key === '+' || e.key === '=') zoomIn();
+  else if (e.key === '-') zoomOut();
+  else if (e.key === 'f' || e.key === 'F') $('#fsBtn').click();
 });
 
 window.addEventListener('resize', () => {
-  if (resizing) return;
-  resizing = true;
-
-  lastPageBeforeResize = curPage;
   clearTimeout(resizeT);
-
-  resizeT = setTimeout(async () => {
+  updateVh();
+  const was = isPort;
+  detectOrient();
+  
+  if (was !== isPort) {
     rendered.clear();
-    await init();
-    curPage = lastPageBeforeResize;
-    flip.turnToPage(curPage - 1);
-    resizing = false;
-  }, 300);
+    queue.clear();
+    init();
+  } else {
+    resizeT = setTimeout(() => {
+      calcDims().then(() => {
+        rendered.clear();
+        createFlip();
+        createPages();
+        flip.loadFromHTML(elems);
+        flip.turnToPage(curPage - 1);
+        updateVisible(curPage - 1);
+      });
+    }, 300);
+  }
+});
+
+document.addEventListener('contextmenu', e => {
+  if (e.target.closest('.pf-page, #book')) e.preventDefault();
 });
 
 init();
 </script>
 </body>
-  
+</html>
