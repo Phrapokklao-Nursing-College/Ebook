@@ -297,7 +297,9 @@ function createFlip() {
     maxHeight: 3000,
     showCover: true,
     usePortrait: isPort,
-    swipeDistance: 50
+    swipeDistance: 50,
+    clickEventForward: false,
+    useMouseEvents: false
   });
   
   flip.on('flip', e => {
