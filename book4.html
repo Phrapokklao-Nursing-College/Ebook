@@ -109,7 +109,7 @@ const $ = s => document.querySelector(s);
 let pdf, flip, curPage = 1, total = 0, zoom = 1, tW = 0, tH = 0, isPort = false;
 let panning = false, startX, startY, scrLeft, scrTop;
 const dims = new Map(), rendered = new Map(), elems = [], queue = new Set();
-let resizeT, zoomT, kbT = 0;
+let resizeT, zoomT, kbT = 0, savedPage = 1;
 
 if (window.pdfjsLib) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 
@@ -432,10 +432,18 @@ window.addEventListener('resize', () => {
   const was = isPort;
   detectOrient();
   
+  // บันทึกหน้าปัจจุบันก่อนเปลี่ยน
+  savedPage = curPage;
+  
   if (was !== isPort) {
     rendered.clear();
     queue.clear();
-    init();
+    init().then(() => {
+      // กลับไปหน้าเดิมหลัง reinit
+      if (savedPage > 1) {
+        setTimeout(() => goPage(savedPage), 150);
+      }
+    });
   } else {
     resizeT = setTimeout(() => {
       calcDims().then(() => {
@@ -443,8 +451,11 @@ window.addEventListener('resize', () => {
         createFlip();
         createPages();
         flip.loadFromHTML(elems);
-        flip.turnToPage(curPage - 1);
-        updateVisible(curPage - 1);
+        // กลับไปหน้าเดิม
+        flip.turnToPage(savedPage - 1);
+        curPage = savedPage;
+        updateVisible(savedPage - 1);
+        updateUI();
       });
     }, 300);
   }
