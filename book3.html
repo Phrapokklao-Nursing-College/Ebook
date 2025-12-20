@@ -330,7 +330,16 @@ async function renderPage(n) {
       rotation = 0;
     }
     
-    const scale = (tW / dim.w) * CFG.quality;
+    const isLandscapePage = dim.w > dim.h;
+
+let scale;
+if (isLandscapePage) {
+  // 👉 หน้าแนวนอน → ยึดความสูง
+  scale = (tH / dim.h) * CFG.quality;
+} else {
+  // 👉 หน้าแนวตั้ง → ยึดความกว้าง (เดิม)
+  scale = (tW / dim.w) * CFG.quality;
+}
     const dpr = Math.min(window.devicePixelRatio || 1, CFG.maxDPR);
     const vp = pg.getViewport({ scale: scale * dpr, rotation });
     
@@ -474,5 +483,6 @@ init();
 </script>
 </body>
 </html>
+
 
 
