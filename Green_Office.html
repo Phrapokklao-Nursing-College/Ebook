@@ -310,6 +310,13 @@ html,body{
   border-radius:50%;
   animation:spin .9s linear infinite
 }
+.stf__item,
+.stf__itemContent,
+.stf__block,
+.stf__outer,
+.stf__wrapper{
+  pointer-events:none !important;
+}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (max-width:768px) and (orientation:portrait){
   :root{--ch:100px}
@@ -326,9 +333,7 @@ html,body{
   }
   #bookContainer{padding:10px 5px}
   .toolbar button{width:38px;height:38px;font-size:14px}
-  .nav-arrow{width:45px;height:70px;font-size:22px}
-  .nav-arrow.left{left:5px}
-  .nav-arrow.right{right:5px}
+  .nav-arrow{display:none !important}
 }
 </style>
 </head>
@@ -382,6 +387,7 @@ const CFG = {
 };
 
 const $ = s => document.querySelector(s);
+const isMobile = () => window.innerWidth <= 768;
 let pdf, flip, curPage = 1, total = 0, zoom = 1, tW = 0, tH = 0, isPort = false;
 let fsPage = null;
 let panning = false, startX, startY, scrLeft, scrTop;
@@ -415,12 +421,22 @@ function updateVh() {
 }
 updateVh();
 
+function setInteractionMode() {
+  const book = $('#book');
+  const isMobileNow = isMobile();
+
+  if (isMobileNow) {
+    book.style.pointerEvents = 'auto';
+  } else {
+    book.style.pointerEvents = zoom > 1 ? 'auto' : 'none';
+  }
+}
+
 function applyZoom() {
   $('#book').style.transform = `scale(${zoom})`;
   const cont = $('#bookContainer');
 
   if (zoom > 1) {
-    $('#book').style.pointerEvents = 'auto';
     cont.classList.add('zoomed');
     cont.addEventListener('mousedown', startPan);
     cont.addEventListener('mousemove', doPan);
@@ -430,18 +446,18 @@ function applyZoom() {
     cont.addEventListener('touchmove', doPanTouch, { passive: false });
     cont.addEventListener('touchend', endPan);
   } else {
-    $('#book').style.pointerEvents = 'none';
     cont.classList.remove('zoomed');
     cont.scrollTop = 0;
     cont.scrollLeft = 0;
   }
 
+  setInteractionMode();
   showZoom();
   updateUI();
 }
 
 function startPan(e) {
-  if (zoom <= 1) return;
+  if (zoom <= 1 || isMobile()) return;
   panning = true;
   const c = $('#bookContainer');
   startX = e.pageX - c.offsetLeft;
@@ -451,7 +467,7 @@ function startPan(e) {
 }
 
 function startPanTouch(e) {
-  if (zoom <= 1 || e.touches.length !== 1) return;
+  if (zoom <= 1 || e.touches.length !== 1 || isMobile()) return;
   panning = true;
   const c = $('#bookContainer');
   const t = e.touches[0];
@@ -462,7 +478,7 @@ function startPanTouch(e) {
 }
 
 function doPan(e) {
-  if (!panning || zoom <= 1) return;
+  if (!panning || zoom <= 1 || isMobile()) return;
   e.preventDefault();
   const c = $('#bookContainer');
   c.scrollLeft = scrLeft - ((e.pageX - c.offsetLeft - startX) * 1.5);
@@ -470,7 +486,7 @@ function doPan(e) {
 }
 
 function doPanTouch(e) {
-  if (!panning || zoom <= 1 || e.touches.length !== 1) return;
+  if (!panning || zoom <= 1 || e.touches.length !== 1 || isMobile()) return;
   e.preventDefault();
   const c = $('#bookContainer');
   const t = e.touches[0];
@@ -523,8 +539,15 @@ async function init() {
 
     $('#loader').style.display = 'none';
     $('#controls').style.display = 'flex';
-    $('#navPrevBtn').style.display = 'flex';
-    $('#navNextBtn').style.display = 'flex';
+
+    if (!isMobile()) {
+      $('#navPrevBtn').style.display = 'flex';
+      $('#navNextBtn').style.display = 'flex';
+    } else {
+      $('#navPrevBtn').style.display = 'none';
+      $('#navNextBtn').style.display = 'none';
+    }
+
     $('#pageSlider').max = total;
     $('#pageInput').max = total;
     $('#totalPages').textContent = total;
@@ -533,6 +556,7 @@ async function init() {
     if (!isPort) await renderPage(2);
 
     flip.turnToPage(0);
+    setInteractionMode();
     updateUI();
     setTimeout(() => updateVisible(0), 100);
 
@@ -570,6 +594,8 @@ function createFlip() {
   const bookEl = $('#book');
   bookEl.innerHTML = '';
 
+  const mobileMode = isMobile();
+
   flip = new St.PageFlip(bookEl, {
     width: tW,
     height: tH,
@@ -580,9 +606,10 @@ function createFlip() {
     maxHeight: 3000,
     showCover: true,
     usePortrait: isPort,
-    swipeDistance: 9999,
-    mobileScrollSupport: false,
-    clickEventForward: false
+    swipeDistance: mobileMode ? 50 : 9999,
+    mobileScrollSupport: mobileMode,
+    clickEventForward: mobileMode,
+    disableFlipByClick: !mobileMode
   });
 
   flip.on('flip', e => {
@@ -738,14 +765,23 @@ window.addEventListener('resize', () => {
         flip.loadFromHTML(elems);
         flip.turnToPage(curPage - 1);
         updateVisible(curPage - 1);
+        setInteractionMode();
         applyZoom();
+
+        if (!isMobile()) {
+          $('#navPrevBtn').style.display = 'flex';
+          $('#navNextBtn').style.display = 'flex';
+        } else {
+          $('#navPrevBtn').style.display = 'none';
+          $('#navNextBtn').style.display = 'none';
+        }
       });
     }, 300);
   }
 });
 
 document.addEventListener('contextmenu', e => {
-  if (e.target.closest('.pf-page, #book')) e.preventDefault();
+  if (!isMobile() && e.target.closest('.pf-page, #book')) e.preventDefault();
 });
 
 document.addEventListener('fullscreenchange', () => {
@@ -754,6 +790,7 @@ document.addEventListener('fullscreenchange', () => {
       flip.turnToPage(fsPage - 1);
       updateVisible(fsPage - 1);
       updateUI();
+      setInteractionMode();
       applyZoom();
     }, 300);
   }
