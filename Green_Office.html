@@ -9,7 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{--vh:1vh;--ch:90px;--grad:linear-gradient(135deg,#667eea,#5b6dcd,#8b7fc7,#9ea4c7,#b5bcc9);--btn:linear-gradient(135deg,#ff6b6b,#ee5a6f,#c44569)}
+:root{--vh:1vh;--ch:90px;--grad:linear-gradient(135deg,#d4f8e8,#c8f2dd,#b8eecf,#a8e8c1,#d9fbe9);--btn:linear-gradient(135deg,#2e7d32,#1b5e20,#145a32)}
 html,body{height:100%;margin:0;padding:0;background:var(--grad);background-attachment:fixed;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
 #bookContainer{width:100%;height:calc(var(--vh)*100 - var(--ch));position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:30px 15px}
 #bookContainer.zoomed{overflow:auto;cursor:grab;align-items:flex-start;padding-top:0}
@@ -33,7 +33,7 @@ html,body{height:100%;margin:0;padding:0;background:var(--grad);background-attac
 #pageSlider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;cursor:pointer;border:none;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 .toolbar{display:flex;gap:5px;background:rgba(255,255,255,.15);backdrop-filter:blur(16px);padding:5px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.25);box-shadow:0 4px 20px rgba(0,0,0,.2)}
 .toolbar button{border:none;background:var(--btn);color:#fff;font-weight:600;padding:0;border-radius:50%;cursor:pointer;font-size:15px;width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.25);transition:all .2s}
-.toolbar button:hover{transform:translateY(-2px) scale(1.05)}
+.toolbar button:hover{transform:translateY(-2px) scale(1.05);background: linear-gradient(135deg,#43a047,#2e7d32);}
 .toolbar button:active{transform:translateY(0) scale(.95)}
 .toolbar button:disabled{opacity:.4;cursor:not-allowed}
 .nav-arrow{position:fixed;top:50%;transform:translateY(-50%);width:50px;height:80px;background:var(--btn);border:none;color:#fff;font-size:28px;cursor:pointer;z-index:998;display:flex;align-items:center;justify-content:center;opacity:.7;transition:all .3s;box-shadow:0 4px 15px rgba(0,0,0,.3)}
@@ -286,17 +286,19 @@ function createFlip() {
   bookEl.innerHTML = '';
   
   flip = new St.PageFlip(bookEl, {
-    width: tW,
-    height: tH,
-    size: 'stretch',
-    minWidth: 250,
-    maxWidth: 3000,
-    minHeight: 180,
-    maxHeight: 3000,
-    showCover: true,
-    usePortrait: isPort,
-    swipeDistance: 50
-  });
+  width: tW,
+  height: tH,
+  size: 'stretch',
+  minWidth: 250,
+  maxWidth: 3000,
+  minHeight: 180,
+  maxHeight: 3000,
+  showCover: true,
+  usePortrait: isPort,
+
+  swipeDistance: 9999, // 🔥 ปิดการปัด
+  mobileScrollSupport: false // 🔥 กัน scroll แล้วเปลี่ยนหน้า
+});
   
   flip.on('flip', e => {
     curPage = e.data + 1;
