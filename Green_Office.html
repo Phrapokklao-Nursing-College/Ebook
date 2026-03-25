@@ -60,7 +60,6 @@ html,body{
   justify-content:center;
   transform-origin:top center;
   transition:transform .25s cubic-bezier(.4,0,.2,1);
-  pointer-events:none;
 }
 #bookContainer.zoomed #book{margin:20px 0}
 .pf-page{
@@ -310,14 +309,8 @@ html,body{
   border-radius:50%;
   animation:spin .9s linear infinite
 }
-.stf__item,
-.stf__itemContent,
-.stf__block,
-.stf__outer,
-.stf__wrapper{
-  pointer-events:none !important;
-}
 @keyframes spin{to{transform:rotate(360deg)}}
+
 @media (max-width:768px) and (orientation:portrait){
   :root{--ch:100px}
   #topLogo{
@@ -421,37 +414,19 @@ function updateVh() {
 }
 updateVh();
 
-function setInteractionMode() {
-  const book = $('#book');
-  const isMobileNow = isMobile();
-
-  if (isMobileNow) {
-    book.style.pointerEvents = 'auto';
-  } else {
-    book.style.pointerEvents = zoom > 1 ? 'auto' : 'none';
-  }
-}
-
 function applyZoom() {
   $('#book').style.transform = `scale(${zoom})`;
   const cont = $('#bookContainer');
 
-  if (zoom > 1) {
+  if (zoom > 1 && !isMobile()) {
     cont.classList.add('zoomed');
-    cont.addEventListener('mousedown', startPan);
-    cont.addEventListener('mousemove', doPan);
-    cont.addEventListener('mouseup', endPan);
-    cont.addEventListener('mouseleave', endPan);
-    cont.addEventListener('touchstart', startPanTouch, { passive: false });
-    cont.addEventListener('touchmove', doPanTouch, { passive: false });
-    cont.addEventListener('touchend', endPan);
   } else {
     cont.classList.remove('zoomed');
     cont.scrollTop = 0;
     cont.scrollLeft = 0;
+    panning = false;
   }
 
-  setInteractionMode();
   showZoom();
   updateUI();
 }
@@ -467,7 +442,7 @@ function startPan(e) {
 }
 
 function startPanTouch(e) {
-  if (zoom <= 1 || e.touches.length !== 1 || isMobile()) return;
+  if (zoom <= 1 || isMobile() || e.touches.length !== 1) return;
   panning = true;
   const c = $('#bookContainer');
   const t = e.touches[0];
@@ -486,7 +461,7 @@ function doPan(e) {
 }
 
 function doPanTouch(e) {
-  if (!panning || zoom <= 1 || e.touches.length !== 1 || isMobile()) return;
+  if (!panning || zoom <= 1 || isMobile() || e.touches.length !== 1) return;
   e.preventDefault();
   const c = $('#bookContainer');
   const t = e.touches[0];
@@ -496,6 +471,17 @@ function doPanTouch(e) {
 
 function endPan() {
   panning = false;
+}
+
+function bindDesktopPan() {
+  const cont = $('#bookContainer');
+  cont.onmousedown = startPan;
+  cont.onmousemove = doPan;
+  cont.onmouseup = endPan;
+  cont.onmouseleave = endPan;
+  cont.ontouchstart = startPanTouch;
+  cont.ontouchmove = doPanTouch;
+  cont.ontouchend = endPan;
 }
 
 function showZoom() {
@@ -536,6 +522,7 @@ async function init() {
     createFlip();
     createPages();
     flip.loadFromHTML(elems);
+    bindDesktopPan();
 
     $('#loader').style.display = 'none';
     $('#controls').style.display = 'flex';
@@ -556,7 +543,7 @@ async function init() {
     if (!isPort) await renderPage(2);
 
     flip.turnToPage(0);
-    setInteractionMode();
+    applyZoom();
     updateUI();
     setTimeout(() => updateVisible(0), 100);
 
@@ -606,10 +593,11 @@ function createFlip() {
     maxHeight: 3000,
     showCover: true,
     usePortrait: isPort,
-    swipeDistance: mobileMode ? 50 : 9999,
+    swipeDistance: mobileMode ? 30 : 9999,
     mobileScrollSupport: mobileMode,
     clickEventForward: mobileMode,
-    disableFlipByClick: !mobileMode
+    useMouseEvents: mobileMode,
+    maxShadowOpacity: mobileMode ? 0.25 : 0
   });
 
   flip.on('flip', e => {
@@ -763,9 +751,9 @@ window.addEventListener('resize', () => {
         createFlip();
         createPages();
         flip.loadFromHTML(elems);
+        bindDesktopPan();
         flip.turnToPage(curPage - 1);
         updateVisible(curPage - 1);
-        setInteractionMode();
         applyZoom();
 
         if (!isMobile()) {
@@ -790,7 +778,6 @@ document.addEventListener('fullscreenchange', () => {
       flip.turnToPage(fsPage - 1);
       updateVisible(fsPage - 1);
       updateUI();
-      setInteractionMode();
       applyZoom();
     }, 300);
   }
